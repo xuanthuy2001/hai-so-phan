@@ -112,6 +112,7 @@
     root.style.setProperty('--fs', S.fs + 'px'); root.style.setProperty('--lh', S.lh);
     book.classList.toggle('sans', S.font === 'sans');
     root.dataset.theme = S.theme; root.dataset.mode = S.mode;
+    area.style.touchAction = sc ? 'pan-y' : 'none'; // cho phép vuốt dọc để cuộn trên iPad/iPhone
     lastMode = S.mode; ready = true;
     const el = book.children[a];
     if (sc) {
