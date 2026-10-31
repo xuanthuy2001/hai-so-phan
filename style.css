@@ -1,60 +1,439 @@
-:root{--fs:20px;--lh:1.7;--ff:Georgia,"Times New Roman","Noto Serif",serif;--pg:calc(var(--lh) * 1em);--ta:left}
-[data-theme=light]{--bg:#fdfdfc;--fg:#1f1f22;--mut:#8b8b90;--ui:#f1f1f3;--bd:#d8d8dd;--ac:#1f1f22}
-[data-theme=sepia]{--bg:#f3ead6;--fg:#46371f;--mut:#9a8866;--ui:#e9dec2;--bd:#d3c4a0;--ac:#46371f}
-[data-theme=dark]{--bg:#141416;--fg:#c8c8cc;--mut:#707076;--ui:#212125;--bd:#35353b;--ac:#c8c8cc}
-*{box-sizing:border-box}
-[hidden]{display:none!important}
-html,body{margin:0;height:100%;overflow:hidden;overscroll-behavior:none;background:var(--bg);color:var(--fg)}
-body{-webkit-text-size-adjust:100%}
+:root {
+    --fs: 20px;
+    --lh: 1.7;
+    --ff: Charter, "Iowan Old Style", "Noto Serif", Georgia, "Times New Roman", serif;
+    --pg: calc(var(--lh) * 1em);
+    --ta: left
+}
+
+[data-theme=light] {
+    --bg: #f8f6f1;
+    --fg: #2b2a28;
+    --mut: #8a8780;
+    --ui: #eceae3;
+    --bd: #d6d3ca;
+    --ac: #2b2a28;
+    --hl: #ffe08a
+}
+
+[data-theme=sepia] {
+    --bg: #f1e6cc;
+    --fg: #3b2f1f;
+    --mut: #8f7d5c;
+    --ui: #e6d9b9;
+    --bd: #cfbf98;
+    --ac: #3b2f1f;
+    --hl: #f2c14e
+}
+
+[data-theme=dark] {
+    --bg: #1a1916;
+    --fg: #c9c3b5;
+    --mut: #7b766a;
+    --ui: #262521;
+    --bd: #3a3832;
+    --ac: #c9c3b5;
+    --hl: #6b5200
+}
+
+* {
+    box-sizing: border-box
+}
+
+[hidden] {
+    display: none !important
+}
+
+html,
+body {
+    margin: 0;
+    height: 100%;
+    overflow: hidden;
+    overscroll-behavior: none;
+    background: var(--bg);
+    color: var(--fg)
+}
+
+body {
+    -webkit-text-size-adjust: 100%
+}
 
 /* ---- Khung trang ---- */
-#area{position:fixed;inset:0;touch-action:none;-webkit-user-select:none;user-select:none;-webkit-touch-callout:none}
-#vp{position:absolute;overflow:hidden}
-#book{height:100%;column-fill:auto;font:var(--fs)/var(--lh) var(--ff);text-align:var(--ta);
-  transition:transform .26s ease;will-change:transform}
-@media (prefers-reduced-motion:reduce){#book{transition:none}}
+#area {
+    position: fixed;
+    inset: 0;
+    touch-action: none;
+    -webkit-user-select: none;
+    user-select: none;
+    -webkit-touch-callout: none
+}
+
+#vp {
+    position: absolute;
+    overflow: hidden
+}
+
+#book {
+    position: relative;
+    height: 100%;
+    column-fill: auto;
+    font: var(--fs)/var(--lh) var(--ff);
+    text-align: var(--ta);
+    transition: transform .26s ease;
+    will-change: transform
+}
+
+@media (prefers-reduced-motion:reduce) {
+    #book {
+        transition: none
+    }
+}
 
 /* ---- Lớp CSS chuẩn hoá cho nội dung ---- */
-#book p,#book h1,#book h2,#book h3,#book h4,#book blockquote{
-  margin:0 0 var(--pg);break-inside:avoid;-webkit-column-break-inside:avoid;page-break-inside:avoid}
-#book .al-center{text-align:center}
-#book .al-right{text-align:right}
-#book .al-left{text-align:left}
-#book .al-justify{text-align:justify}
-#book .chapter{break-before:column;-webkit-column-break-before:always;break-after:avoid;-webkit-column-break-after:avoid;
-  text-align:center;font-size:1.45em;font-weight:700;line-height:1.3;margin:1.4em 0 1em}
-#book > :first-child.chapter{break-before:auto;-webkit-column-break-before:auto}
-#book blockquote{padding-left:1em;border-left:2px solid var(--bd)}
-#book hr{border:0;border-top:1px solid var(--bd);margin:1em 0;break-inside:avoid}
-#book.sans{--ff:-apple-system,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif}
-#book .empty{margin-top:30%;color:var(--mut);text-align:center;font-size:.8em}
+#book p,
+#book h1,
+#book h2,
+#book h3,
+#book h4,
+#book blockquote {
+    margin: 0 0 var(--pg);
+    break-inside: avoid;
+    -webkit-column-break-inside: avoid;
+    page-break-inside: avoid
+}
+
+#book .al-center {
+    text-align: center
+}
+
+#book .al-right {
+    text-align: right
+}
+
+#book .al-left {
+    text-align: left
+}
+
+#book .al-justify {
+    text-align: justify
+}
+
+#book .chapter {
+    break-before: column;
+    -webkit-column-break-before: always;
+    break-after: avoid;
+    -webkit-column-break-after: avoid;
+    text-align: center;
+    font-size: 1.45em;
+    font-weight: 700;
+    line-height: 1.3;
+    margin: 1.4em 0 1em
+}
+
+#book> :first-child.chapter {
+    break-before: auto;
+    -webkit-column-break-before: auto
+}
+
+#book blockquote {
+    padding-left: 1em;
+    border-left: 2px solid var(--bd)
+}
+
+#book hr {
+    border: 0;
+    border-top: 1px solid var(--bd);
+    margin: 1em 0;
+    break-inside: avoid
+}
+
+#book.sans {
+    --ff: -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif
+}
+
+#book .empty {
+    margin-top: 30%;
+    color: var(--mut);
+    text-align: center;
+    font-size: .8em
+}
 
 /* ---- Chân trang ---- */
-#foot{position:fixed;left:0;right:0;bottom:calc(env(safe-area-inset-bottom) + 10px);display:flex;justify-content:space-between;
-  gap:16px;font:12px/1 -apple-system,"Segoe UI",system-ui,sans-serif;color:var(--mut);pointer-events:none}
-#foot span:first-child{overflow:hidden;white-space:nowrap;text-overflow:ellipsis}
-#bar{position:fixed;left:0;bottom:0;height:3px;background:var(--mut);opacity:.5;transition:width .26s}
+#foot {
+    position: fixed;
+    left: 0;
+    right: 0;
+    bottom: calc(env(safe-area-inset-bottom) + 10px);
+    display: flex;
+    justify-content: space-between;
+    gap: 16px;
+    font: 12px/1 -apple-system, "Segoe UI", system-ui, sans-serif;
+    color: var(--mut);
+    pointer-events: none
+}
+
+#foot span:first-child {
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis
+}
+
+#bar {
+    position: fixed;
+    left: 0;
+    bottom: 0;
+    height: 3px;
+    background: var(--mut);
+    opacity: .5;
+    transition: width .26s
+}
 
 /* ---- Thanh công cụ & bảng ---- */
-#top{position:fixed;top:0;left:0;right:0;z-index:5;display:flex;gap:8px;justify-content:center;
-  padding:calc(env(safe-area-inset-top) + 8px) 12px 8px;background:var(--ui);border-bottom:1px solid var(--bd);
-  transform:translateY(-110%);transition:transform .2s;font-family:-apple-system,"Segoe UI",system-ui,sans-serif}
-#top.show{transform:none}
-.btn{appearance:none;border:1px solid var(--bd);background:var(--bg);color:var(--fg);border-radius:8px;
-  padding:8px 14px;font:inherit;font-size:15px;cursor:pointer;min-height:40px}
-.btn.on{background:var(--ac);color:var(--bg);border-color:var(--ac)}
-.btn:focus-visible{outline:2px solid var(--ac);outline-offset:2px}
-.panel{position:fixed;z-index:4;top:calc(env(safe-area-inset-top) + 64px);left:50%;width:min(440px,94vw);
-  max-height:calc(100% - 120px);overflow:auto;background:var(--ui);border:1px solid var(--bd);border-radius:12px;
-  padding:14px;display:none;font:15px/1.4 -apple-system,"Segoe UI",system-ui,sans-serif;transform:translateX(-50%)}
-.panel.open{display:block}
-.row{display:flex;align-items:center;justify-content:space-between;gap:10px;margin:0 0 12px}
-.row:last-child{margin:0}
-.row>b{font-weight:500;min-width:84px}
-.grp{display:flex;gap:6px;flex:1;justify-content:flex-end}
-.grp .btn{flex:1;max-width:96px;padding:8px 6px;text-align:center}
-.val{min-width:44px;text-align:center;align-self:center}
-#toc button{display:block;width:100%;text-align:left;border:0;background:none;color:var(--fg);font:inherit;
-  padding:10px 6px;border-bottom:1px solid var(--bd);cursor:pointer}
-#toc button small{color:var(--mut);float:right;margin-left:12px}
-#toc button.cur{font-weight:700}
+#top {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    z-index: 5;
+    display: flex;
+    gap: 8px;
+    justify-content: center;
+    padding: calc(env(safe-area-inset-top) + 8px) 12px 8px;
+    background: var(--ui);
+    border-bottom: 1px solid var(--bd);
+    transform: translateY(-110%);
+    transition: transform .2s;
+    font-family: -apple-system, "Segoe UI", system-ui, sans-serif
+}
+
+#top.show {
+    transform: none
+}
+
+.btn {
+    appearance: none;
+    border: 1px solid var(--bd);
+    background: var(--bg);
+    color: var(--fg);
+    border-radius: 8px;
+    padding: 8px 14px;
+    font: inherit;
+    font-size: 15px;
+    cursor: pointer;
+    min-height: 40px
+}
+
+.btn.on {
+    background: var(--ac);
+    color: var(--bg);
+    border-color: var(--ac)
+}
+
+.btn:focus-visible {
+    outline: 2px solid var(--ac);
+    outline-offset: 2px
+}
+
+.panel {
+    position: fixed;
+    z-index: 4;
+    top: calc(env(safe-area-inset-top) + 64px);
+    left: 50%;
+    width: min(440px, 94vw);
+    max-height: calc(100% - 120px);
+    overflow: auto;
+    background: var(--ui);
+    border: 1px solid var(--bd);
+    border-radius: 12px;
+    padding: 14px;
+    display: none;
+    font: 15px/1.4 -apple-system, "Segoe UI", system-ui, sans-serif;
+    transform: translateX(-50%)
+}
+
+.panel.open {
+    display: block
+}
+
+.row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    margin: 0 0 12px
+}
+
+.row:last-child {
+    margin: 0
+}
+
+.row>b {
+    font-weight: 500;
+    min-width: 84px
+}
+
+.grp {
+    display: flex;
+    gap: 6px;
+    flex: 1;
+    justify-content: flex-end
+}
+
+.grp .btn {
+    flex: 1;
+    max-width: 96px;
+    padding: 8px 6px;
+    text-align: center
+}
+
+.val {
+    min-width: 44px;
+    text-align: center;
+    align-self: center
+}
+
+#toc button {
+    display: block;
+    width: 100%;
+    text-align: left;
+    border: 0;
+    background: none;
+    color: var(--fg);
+    font: inherit;
+    padding: 10px 6px;
+    border-bottom: 1px solid var(--bd);
+    cursor: pointer
+}
+
+#toc button small {
+    color: var(--mut);
+    float: right;
+    margin-left: 12px
+}
+
+#toc button.cur {
+    font-weight: 700
+}
+
+#top {
+    flex-wrap: wrap
+}
+
+#vp {
+    -webkit-overflow-scrolling: touch;
+    overscroll-behavior: contain
+}
+
+#book mark {
+    background: var(--hl);
+    color: inherit;
+    border-radius: 2px;
+    padding: 0 1px
+}
+
+[data-mode=scroll] #book .chapter {
+    margin-top: 2.2em
+}
+
+#q {
+    flex: 1;
+    min-width: 0;
+    font: inherit;
+    font-size: 16px;
+    padding: 9px 10px;
+    border: 1px solid var(--bd);
+    border-radius: 8px;
+    background: var(--bg);
+    color: var(--fg)
+}
+
+#qInfo {
+    color: var(--mut);
+    font-size: 13px;
+    margin: 0 0 6px
+}
+
+#qRes button {
+    display: block;
+    width: 100%;
+    text-align: left;
+    border: 0;
+    background: none;
+    color: var(--fg);
+    font: inherit;
+    font-size: 14px;
+    padding: 9px 4px;
+    border-bottom: 1px solid var(--bd);
+    cursor: pointer
+}
+
+#qRes small {
+    display: block;
+    color: var(--mut);
+    font-size: 12px
+}
+
+#qRes b {
+    background: var(--hl);
+    font-weight: 600
+}
+
+#vp {
+    scrollbar-width: thin;
+    scrollbar-color: var(--mut) transparent
+}
+
+/* Bố cục mới: tìm kiếm góc trên phải, thanh công cụ dọc bên trái */
+#top {
+    left: auto;
+    width: min(440px, 100%);
+    flex-wrap: nowrap;
+    justify-content: flex-end;
+    border-left: 1px solid var(--bd);
+    border-radius: 0 0 0 12px
+}
+
+#side {
+    position: fixed;
+    z-index: 5;
+    top: 0;
+    bottom: 0;
+    left: 0;
+    width: calc(env(safe-area-inset-left) + 96px);
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    padding: calc(env(safe-area-inset-top) + 12px) 8px 12px calc(env(safe-area-inset-left) + 8px);
+    background: var(--ui);
+    border-right: 1px solid var(--bd);
+    transform: translateX(-110%);
+    transition: transform .2s;
+    font-family: -apple-system, "Segoe UI", system-ui, sans-serif
+}
+
+#side.show {
+    transform: none
+}
+
+#side .btn {
+    width: 100%;
+    padding: 10px 4px;
+    font-size: 14px;
+    line-height: 1.25
+}
+
+#pSet,
+#pToc {
+    left: calc(env(safe-area-inset-left) + 108px);
+    top: calc(env(safe-area-inset-top) + 12px);
+    transform: none;
+    width: min(440px, calc(100vw - 124px));
+    max-height: calc(100% - 24px)
+}
+
+#pFind {
+    left: auto;
+    right: 12px;
+    transform: none;
+    width: min(420px, calc(100vw - 24px))
+}

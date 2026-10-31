@@ -1,40 +1,76 @@
 <!DOCTYPE html>
 <html lang="vi" data-theme="sepia">
+
 <head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,user-scalable=no">
-<meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<title>Kane và Abel</title>
-<link rel="stylesheet" href="style.css">
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,user-scalable=no">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <title>Kane và Abel</title>
+    <link rel="stylesheet" href="style.css">
 </head>
+
 <body>
 
-<div id="area"><div id="vp"><div id="book"></div></div></div>
-<div id="foot"><span id="fchap"></span><span id="fpage"></span></div>
-<div id="bar"></div>
+    <div id="area">
+        <div id="vp">
+            <div id="book"></div>
+        </div>
+    </div>
+    <div id="foot"><span id="fchap"></span><span id="fpage"></span></div>
+    <div id="bar"></div>
 
-<div id="top">
-  <button class="btn" id="bToc">Mục lục</button>
-  <button class="btn" id="bSet">Aa</button>
-  <button class="btn" id="bFs">Toàn màn hình</button>
-</div>
+    <div id="top">
+        <input id="q" type="search" placeholder="Tìm từ hoặc cụm từ…" autocomplete="off">
+        <button class="btn" id="qDia">Bỏ qua dấu</button>
+    </div>
+    <div id="side">
+        <button class="btn" id="bToc">Mục lục</button>
+        <button class="btn" id="bSet">Aa</button>
+        <button class="btn" id="bFs">Toàn màn hình</button>
+    </div>
 
-<div class="panel" id="pSet">
-  <div class="row"><b>Cỡ chữ</b><div class="grp"><button class="btn" data-k="fs" data-d="-1">A−</button><span class="val" id="vFs"></span><button class="btn" data-k="fs" data-d="1">A+</button></div></div>
-  <div class="row"><b>Khoảng dòng</b><div class="grp"><button class="btn" data-k="lh" data-d="-0.1">−</button><span class="val" id="vLh"></span><button class="btn" data-k="lh" data-d="0.1">+</button></div></div>
-  <div class="row"><b>Font</b><div class="grp"><button class="btn" data-k="font" data-v="serif">Serif</button><button class="btn" data-k="font" data-v="sans">Sans</button></div></div>
-  <div class="row"><b>Giao diện</b><div class="grp"><button class="btn" data-k="theme" data-v="light">Sáng</button><button class="btn" data-k="theme" data-v="sepia">Sepia</button><button class="btn" data-k="theme" data-v="dark">Tối</button></div></div>
-  <div class="row"><b>Số trang</b><div class="grp"><button class="btn" data-k="spread" data-v="auto">Tự động</button><button class="btn" data-k="spread" data-v="1">1</button><button class="btn" data-k="spread" data-v="2">2</button></div></div>
-</div>
-<div class="panel" id="pToc"><div id="toc"></div></div>
-<input type="file" id="file" accept=".html,.htm,.txt" hidden>
+    <div class="panel" id="pSet">
+        <div class="row"><b>Cỡ chữ</b>
+            <div class="grp"><button class="btn" data-k="fs" data-d="-1">A−</button><span class="val"
+                    id="vFs"></span><button class="btn" data-k="fs" data-d="1">A+</button></div>
+        </div>
+        <div class="row"><b>Khoảng dòng</b>
+            <div class="grp"><button class="btn" data-k="lh" data-d="-0.1">−</button><span class="val"
+                    id="vLh"></span><button class="btn" data-k="lh" data-d="0.1">+</button></div>
+        </div>
+        <div class="row"><b>Chế độ đọc</b>
+            <div class="grp"><button class="btn" data-k="mode" data-v="page">Lật trang</button><button class="btn"
+                    data-k="mode" data-v="scroll">Cuộn</button></div>
+        </div>
+        <div class="row"><b>Font</b>
+            <div class="grp"><button class="btn" data-k="font" data-v="serif">Serif</button><button class="btn"
+                    data-k="font" data-v="sans">Sans</button></div>
+        </div>
+        <div class="row"><b>Giao diện</b>
+            <div class="grp"><button class="btn" data-k="theme" data-v="light">Sáng</button><button class="btn"
+                    data-k="theme" data-v="sepia">Sepia</button><button class="btn" data-k="theme"
+                    data-v="dark">Tối</button></div>
+        </div>
+        <div class="row"><b>Số trang</b>
+            <div class="grp"><button class="btn" data-k="spread" data-v="auto">Tự động</button><button class="btn"
+                    data-k="spread" data-v="1">1</button><button class="btn" data-k="spread" data-v="2">2</button></div>
+        </div>
+    </div>
+    <div class="panel" id="pFind">
+        <div id="qInfo"></div>
+        <div id="qRes"></div>
+    </div>
+    <div class="panel" id="pToc">
+        <div id="toc"></div>
+    </div>
 
-<script>
-  // Danh sách file chương, theo đúng thứ tự đọc:
-  window.CHAPTER_FILES=['chuong1.html','chuong2.html','chuong3.html','chuong4.html','chuong5.html','chuong6.html','chuong7.html'];
-</script>
-<script src="script.js"></script>
+    <script>
+        // Danh sách file chương, theo đúng thứ tự đọc:
+        window.CHAPTER_FILES = ['chuong1.html', 'chuong2.html', 'chuong3.html', 'chuong4.html', 'chuong5.html', 'chuong6.html', 'chuong7.html'];
+    </script>
+    <script src="script.js"></script>
 </body>
+
 </html>
