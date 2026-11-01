@@ -27,6 +27,7 @@
     </div>
     <div id="side">
         <button class="btn" id="bToc">Mục lục</button>
+        <button class="btn" id="bNotes">Ghi chú <span id="nCnt"></span></button>
         <button class="btn" id="bSet">Aa</button>
         <button class="btn" id="bFs">Toàn màn hình</button>
     </div>
@@ -64,6 +65,29 @@
     </div>
     <div class="panel" id="pToc">
         <div id="toc"></div>
+    </div>
+    <div class="panel" id="pNotes">
+        <div id="nTools">
+            <span id="nInfo"></span>
+            <button class="btn" id="nTxt">Xuất .txt</button>
+            <button class="btn" id="nJson">Sao lưu</button>
+            <button class="btn" id="nImp">Khôi phục</button>
+        </div>
+        <div id="nFilter"></div>
+        <div id="nList"></div>
+        <input type="file" id="nFile" accept=".json,application/json" hidden>
+    </div>
+
+    <!-- Hộp công cụ bút ghi nhớ: hiện khi bôi chữ hoặc chạm vào đoạn đã bôi -->
+    <div id="hlPop" data-mode="new" hidden>
+        <div class="hl-q ed" id="hlQ"></div>
+        <div class="hl-sw" id="hlSw"></div>
+        <textarea class="ed" id="hlNote" rows="3" placeholder="Ghi chú cho đoạn này…"></textarea>
+        <div class="hl-act">
+            <button class="btn nw" id="hlNoteBtn">Thêm ghi chú</button>
+            <button class="btn ed" id="hlDel">Xoá</button>
+            <button class="btn ed" id="hlOk">Xong</button>
+        </div>
     </div>
 
     <script>

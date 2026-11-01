@@ -7,9 +7,12 @@
   // Nếu nội dung không có thẻ tiêu đề, nhận diện chương theo văn bản:
   const CHAPTER_RE = /^(chương|phần|quyển|hồi|chapter|part|book)\s+\S+/i;
 
+  // Bảng màu bút ghi nhớ (người đọc còn có thể chọn thêm màu tuỳ ý):
+  const PALETTE = ['#ffe08a', '#a8e6a1', '#9fd3ff', '#ffb3c1', '#d9b8ff'];
+
   /* ====== TRẠNG THÁI ====== */
   let docKey = 'reader:' + document.title;
-  let S = { fs: 20, lh: 1.7, font: 'serif', theme: 'sepia', spread: 'auto', mode: 'page', nodia: true };
+  let S = { fs: 20, lh: 1.7, font: 'serif', theme: 'sepia', spread: 'auto', mode: 'page', nodia: true, hlc: PALETTE[0], hlCustom: '' };
   try { Object.assign(S, JSON.parse(localStorage.getItem('reader:settings') || '{}')) } catch (e) { }
   const saveS = () => { try { localStorage.setItem('reader:settings', JSON.stringify(S)) } catch (e) { } };
   const area = $('#area'), vp = $('#vp'), book = $('#book');
@@ -145,13 +148,16 @@
     $('#bar').style.width = (t / max * 100) + '%';
     markCur(c); clearTimeout(st); st = setTimeout(savePos, 300);
   }
-  vp.addEventListener('scroll', () => { if (scrollMode()) requestAnimationFrame(updateScroll) });
+  vp.addEventListener('scroll', () => {
+    if (scrollMode()) requestAnimationFrame(updateScroll);
+    else if (vp.scrollLeft || vp.scrollTop) { vp.scrollLeft = 0; vp.scrollTop = 0 }
+  });
   function jumpEl(el) {
     if (scrollMode()) { vp.scrollTo({ top: Math.max(0, el.offsetTop - 16) }); updateScroll() }
     else go(pageOf(el));
   }
-  const next = () => scrollMode() ? vp.scrollBy({ top: vp.clientHeight * .9, behavior: 'smooth' }) : go(page + 1);
-  const prev = () => scrollMode() ? vp.scrollBy({ top: -vp.clientHeight * .9, behavior: 'smooth' }) : go(page - 1);
+  const next = () => { closePop(); scrollMode() ? vp.scrollBy({ top: vp.clientHeight * .9, behavior: 'smooth' }) : go(page + 1) };
+  const prev = () => { closePop(); scrollMode() ? vp.scrollBy({ top: -vp.clientHeight * .9, behavior: 'smooth' }) : go(page - 1) };
 
   /* ====== NẠP NỘI DUNG ====== */
   function load(html, key) { loadNodes(normalize(html), key) }
@@ -166,6 +172,7 @@
         return t.textContent.replace(/(\s*\|\s*)+/g, ' – ').replace(/\s+/g, ' ').replace(/^ – | – $/g, '').trim()
       })(), page: 0
     }));
+    loadHL();
     let pos = 0; try { pos = +localStorage.getItem(docKey + ':pos') || 0 } catch (e) { }
     layout(Math.min(pos, Math.max(0, book.children.length - 1)));
   }
@@ -183,17 +190,22 @@
 
   /* ====== ĐIỀU KHIỂN ====== */
   let sx = 0, sy = 0;
-  area.addEventListener('pointerdown', e => { sx = e.clientX; sy = e.clientY });
+  let popDown = false;
+  area.addEventListener('pointerdown', e => { sx = e.clientX; sy = e.clientY; popDown = !$('#hlPop').hidden });
   area.addEventListener('pointerup', e => {
     const dx = e.clientX - sx, dy = e.clientY - sy;
+    if (curSel()) return; // đang bôi chọn chữ → không lật trang
     if (!scrollMode() && Math.abs(dx) > 40 && Math.abs(dx) > Math.abs(dy) * 1.3) { dx < 0 ? next() : prev(); hideUI(); return }
     if (Math.abs(dx) > 10 || Math.abs(dy) > 10) return;
+    if (popDown) { closePop(); return }
     if (uiOpen()) { hideUI(); return }
+    const hl = e.target.closest && e.target.closest('.hl');
+    if (hl) { openEdit(hl.dataset.id, hl.getBoundingClientRect()); return }
     const w = area.clientWidth;
     e.clientX < w * .3 ? prev() : e.clientX > w * .7 ? next() : bars(true);
   });
   addEventListener('keydown', e => {
-    if (e.target.matches && e.target.matches('input')) { if (e.key === 'Escape') hideUI(); return }
+    if (e.target.matches && e.target.matches('input,textarea')) { if (e.key === 'Escape') hideUI(); return }
     if (['ArrowRight', 'PageDown', ' '].includes(e.key)) { e.preventDefault(); next() }
     else if (['ArrowLeft', 'PageUp'].includes(e.key)) { e.preventDefault(); prev() }
     else if (e.key === 'Home') scrollMode() ? vp.scrollTo({ top: 0 }) : go(0); else if (e.key === 'End') scrollMode() ? vp.scrollTo({ top: 1e9 }) : go(pages - 1);
@@ -201,10 +213,11 @@
   });
   const bars = on => $$('#top,#side').forEach(b => b.classList.toggle('show', on));
   const uiOpen = () => $('#top').classList.contains('show') || $('.panel.open');
-  function hideUI() { bars(false); $$('.panel').forEach(p => p.classList.remove('open')) }
+  function hideUI() { closePop(); bars(false); $$('.panel').forEach(p => p.classList.remove('open')) }
   function toggle(id) { const p = $(id), was = p.classList.contains('open'); $$('.panel').forEach(x => x.classList.remove('open')); if (!was) p.classList.add('open') }
   $('#bToc').onclick = () => { toggle('#pToc'); const c = $('#toc .cur'); c && c.scrollIntoView({ block: 'center' }) };
   $('#bSet').onclick = () => toggle('#pSet');
+  $('#bNotes').onclick = () => { renderNotes(); toggle('#pNotes') };
   const de = document.documentElement, fsOn = () => document.fullscreenElement || document.webkitFullscreenElement;
   if (!(de.requestFullscreen || de.webkitRequestFullscreen)) $('#bFs').hidden = true;
   $('#bFs').onclick = () => {
@@ -225,7 +238,7 @@
     $$('#pSet [data-v]').forEach(b => b.classList.toggle('on', S[b.dataset.k] === b.dataset.v));
   }
   let rt;
-  ['resize', 'orientationchange', 'fullscreenchange', 'webkitfullscreenchange'].forEach(ev => addEventListener(ev, () => { clearTimeout(rt); rt = setTimeout(() => layout(), 150) }));
+  ['resize', 'orientationchange', 'fullscreenchange', 'webkitfullscreenchange'].forEach(ev => addEventListener(ev, () => { clearTimeout(rt); rt = setTimeout(() => { layout(); repop() }, 150) }));
 
   /* ====== TÌM KIẾM ====== */
   const fold = s => { s = s.toLowerCase(); return S.nodia ? s.replace(/[^\u0000-\u007f]/g, c => c === 'đ' ? 'd' : c.normalize('NFD')[0]) : s };
@@ -270,6 +283,223 @@
   $('#qDia').onclick = () => { S.nodia = !S.nodia; saveS(); syncUI(); doSearch() };
   function showFind() { $$('.panel').forEach(x => x.classList.remove('open')); $('#pFind').classList.add('open') }
   $('#q').addEventListener('focus', () => { if (hits.length) showFind() });
+
+
+  /* ====== BÚT GHI NHỚ: BÔI ĐOẠN + GHI CHÚ ====== */
+  // Mỗi đoạn bôi: { id, segs:[{b,s,e,x}], text, c, note, t }
+  //   b = chỉ số khối (đoạn văn) trong sách, s/e = vị trí ký tự trong khối đó, x = chữ gốc (để kiểm tra khi nạp lại)
+  let HL = [], pend = null, editId = null, nf = '', selT = 0, nt = 0;
+  const pop = $('#hlPop'), hlNote = $('#hlNote');
+  const hlKey = () => docKey + ':hl';
+  const uid = () => 'h' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
+  const hlEls = id => book.querySelectorAll('.hl[data-id="' + id + '"]');
+  const strip = h => { const { lost, ...r } = h; return r };
+  const saveHL = () => { try { localStorage.setItem(hlKey(), JSON.stringify(HL.map(strip))) } catch (e) { } renderNotes() };
+  const chOf = b => { let r = ''; for (const c of chapters) { if (c.idx <= b) r = c.title; else break } return r };
+  const posKey = h => h.segs.length ? h.segs[0].b * 1e6 + h.segs[0].s : 0;
+
+  function wrapSeg(el, s, e, h) {
+    const w = document.createTreeWalker(el, NodeFilter.SHOW_TEXT), list = []; let pos = 0, n;
+    while ((n = w.nextNode())) {
+      const len = n.nodeValue.length, a = Math.max(s, pos), b = Math.min(e, pos + len);
+      if (a < b) list.push([n, a - pos, b - pos]);
+      pos += len; if (pos >= e) break;
+    }
+    list.forEach(([n, a, b]) => {
+      let t = n; if (a > 0) t = n.splitText(a);
+      if (b - a < t.nodeValue.length) t.splitText(b - a);
+      const sp = document.createElement('span'); sp.className = 'hl'; sp.dataset.id = h.id;
+      t.replaceWith(sp); sp.append(t);
+    });
+  }
+  function paint(h) { hlEls(h.id).forEach(sp => { sp.style.setProperty('--c', h.c); sp.classList.toggle('has-note', !!h.note) }) }
+  function drawHL(h) {
+    h.lost = false;
+    h.segs.forEach(g => {
+      const el = book.children[g.b]; if (!el) { h.lost = true; return }
+      const t = el.textContent;
+      if (t.slice(g.s, g.e) !== g.x) { // sách đã đổi nhẹ → tìm lại chữ trong cùng khối
+        const i = t.indexOf(g.x); if (i < 0) { h.lost = true; return }
+        g.s = i; g.e = i + g.x.length;
+      }
+      wrapSeg(el, g.s, g.e, h);
+    });
+    paint(h);
+  }
+  function loadHL() {
+    try { HL = JSON.parse(localStorage.getItem(hlKey()) || '[]') } catch (e) { HL = [] }
+    if (!Array.isArray(HL)) HL = [];
+    HL.forEach(h => drawHL(h)); closePop(); renderNotes();
+  }
+  function removeHL(id) {
+    const els = [...hlEls(id)], ps = new Set(els.map(sp => sp.parentNode));
+    els.forEach(sp => sp.replaceWith(...sp.childNodes)); ps.forEach(p => p.normalize());
+    HL = HL.filter(h => h.id !== id);
+  }
+
+  /* -- Vùng đang bôi → danh sách đoạn (theo từng khối) -- */
+  function curSel() {
+    const sel = getSelection(); if (!sel || sel.isCollapsed || !sel.rangeCount) return null;
+    const r = sel.getRangeAt(0); return book.contains(r.commonAncestorContainer) ? r : null;
+  }
+  const blockOf = (n, o, end) => {
+    if (n === book) return book.children[Math.max(0, Math.min(book.children.length - 1, end ? o - 1 : o))];
+    while (n && n.parentNode !== book) n = n.parentNode; return n;
+  };
+  const offIn = (el, n, o) => { const q = document.createRange(); q.selectNodeContents(el); q.setEnd(n, o); return q.toString().length };
+  function segsOf(r) {
+    const a = blockOf(r.startContainer, r.startOffset), z = blockOf(r.endContainer, r.endOffset, true), segs = [];
+    if (!a || !z) return segs;
+    let i = [...book.children].indexOf(a);
+    for (let el = a; el; el = el.nextElementSibling, i++) {
+      const t = el.textContent; let s = 0, e = t.length;
+      if (el === a) s = offIn(el, r.startContainer, r.startOffset);
+      if (el === z) e = offIn(el, r.endContainer, r.endOffset);
+      while (s < e && /\s/.test(t[s])) s++;
+      while (e > s && /\s/.test(t[e - 1])) e--;
+      if (e > s) segs.push({ b: i, s, e, x: t.slice(s, e) });
+      if (el === z) break;
+    }
+    return segs;
+  }
+
+  /* -- Hộp công cụ nổi -- */
+  function placePop(rect) {
+    pop.hidden = false;
+    const w = pop.offsetWidth, h = pop.offsetHeight, coarse = matchMedia('(pointer:coarse)').matches;
+    const x = Math.min(Math.max(8, rect.left + rect.width / 2 - w / 2), innerWidth - w - 8);
+    let y = coarse ? rect.bottom + 14 : rect.top - h - 10; // cảm ứng: đặt dưới để khỏi đè menu của hệ thống
+    if (y < 8) y = rect.bottom + 10;
+    pop.style.left = x + 'px'; pop.style.top = Math.max(8, Math.min(y, innerHeight - h - 8)) + 'px';
+  }
+  function repop() { if (!pop.hidden && editId) { const s = hlEls(editId)[0]; if (s) placePop(s.getBoundingClientRect()) } }
+  function drawSw(cur) {
+    const box = $('#hlSw'); box.textContent = '';
+    const cs = [...PALETTE]; if (S.hlCustom && !cs.includes(S.hlCustom)) cs.push(S.hlCustom);
+    cs.forEach(c => {
+      const b = document.createElement('button'); b.className = 'sw' + (c === cur ? ' on' : '');
+      b.style.background = c; b.dataset.c = c; b.setAttribute('aria-label', 'Màu ' + c); box.append(b);
+    });
+    const l = document.createElement('label'); l.className = 'sw custom'; l.title = 'Chọn màu khác';
+    const inp = document.createElement('input'); inp.type = 'color'; inp.value = S.hlCustom || cur || S.hlc;
+    l.append(inp); box.append(l);
+  }
+  function closePop() {
+    if (nt) { clearTimeout(nt); nt = 0; saveHL() }
+    pop.hidden = true; pend = null; editId = null; hlNote.blur();
+  }
+  function openEdit(id, rect) {
+    const h = HL.find(x => x.id === id); if (!h) return;
+    pend = null; editId = id;
+    $('#hlQ').textContent = h.text.length > 120 ? h.text.slice(0, 120) + '…' : h.text;
+    hlNote.value = h.note || ''; drawSw(h.c);
+    pop.dataset.mode = 'edit'; placePop(rect);
+  }
+  function addHL(c) {
+    clearMarks(); // gỡ phần tô sáng của tìm kiếm trước khi bọc chữ
+    const h = { id: uid(), segs: pend.segs, text: pend.segs.map(g => g.x).join(' '), c, note: '', t: Date.now() };
+    HL.push(h); drawHL(h); saveHL();
+    const sel = getSelection(); sel && sel.removeAllRanges(); pend = null; return h;
+  }
+  function pickColor(c) {
+    S.hlc = c; saveS();
+    if (editId) { const h = HL.find(x => x.id === editId); if (h) { h.c = c; paint(h); saveHL(); drawSw(c) } }
+    else if (pend) { addHL(c); closePop() }
+  }
+  function onSel() {
+    if (editId && !pop.hidden) return; // đang sửa ghi chú, bỏ qua thay đổi vùng chọn
+    const r = curSel(); if (!r) { closePop(); return }
+    const segs = segsOf(r); if (!segs.length) { closePop(); return }
+    pend = { segs }; editId = null; pop.dataset.mode = 'new'; drawSw(S.hlc); placePop(r.getBoundingClientRect());
+  }
+  document.addEventListener('selectionchange', () => { clearTimeout(selT); selT = setTimeout(onSel, 250) });
+  pop.addEventListener('mousedown', e => { if (!e.target.closest('textarea,input')) e.preventDefault() }); // giữ nguyên vùng đang bôi
+  $('#hlSw').addEventListener('click', e => { const b = e.target.closest('.sw[data-c]'); if (b) pickColor(b.dataset.c) });
+  $('#hlSw').addEventListener('change', e => {
+    if (e.target.type !== 'color') return;
+    S.hlCustom = e.target.value; saveS(); pickColor(e.target.value);
+  });
+  $('#hlNoteBtn').onclick = () => {
+    if (!pend) return;
+    const h = addHL(S.hlc), s = hlEls(h.id)[0];
+    openEdit(h.id, s ? s.getBoundingClientRect() : pop.getBoundingClientRect()); hlNote.focus();
+  };
+  hlNote.addEventListener('input', () => {
+    const h = HL.find(x => x.id === editId); if (!h) return;
+    h.note = hlNote.value; paint(h); clearTimeout(nt); nt = setTimeout(() => { nt = 0; saveHL() }, 400);
+  });
+  $('#hlDel').onclick = () => {
+    const h = HL.find(x => x.id === editId); if (!h) return;
+    if (h.note && !confirm('Xoá đoạn bôi và ghi chú này?')) return;
+    clearTimeout(nt); nt = 0; removeHL(h.id); saveHL(); closePop();
+  };
+  $('#hlOk').onclick = closePop;
+
+  /* -- Danh sách ghi chú trên thanh công cụ -- */
+  function renderNotes() {
+    const L = $('#nList'), F = $('#nFilter'); L.textContent = ''; F.textContent = '';
+    const all = [...HL].sort((a, b) => posKey(a) - posKey(b)), cs = [...new Set(all.map(h => h.c))];
+    $('#nCnt').textContent = HL.length ? '(' + HL.length + ')' : '';
+    if (nf && !cs.includes(nf)) nf = '';
+    if (cs.length > 1) cs.forEach(c => {
+      const b = document.createElement('button'); b.className = 'sw sm' + (c === nf ? ' on' : ''); b.style.background = c;
+      b.setAttribute('aria-label', 'Lọc theo màu'); b.onclick = () => { nf = nf === c ? '' : c; renderNotes() }; F.append(b);
+    });
+    const list = nf ? all.filter(h => h.c === nf) : all;
+    $('#nInfo').textContent = list.length ? list.length + ' đoạn đã bôi' : 'Chưa có đoạn nào. Bôi chữ trong sách để bắt đầu.';
+    list.forEach(h => {
+      const d = document.createElement('button'); d.className = 'note' + (h.lost ? ' lost' : ''); d.style.setProperty('--c', h.c);
+      const ch = chOf(h.segs.length ? h.segs[0].b : 0);
+      if (ch) { const sm = document.createElement('small'); sm.textContent = ch; d.append(sm) }
+      const q = document.createElement('span'); q.className = 'q'; q.textContent = h.text; d.append(q);
+      if (h.note) { const n = document.createElement('span'); n.className = 'n'; n.textContent = h.note; d.append(n) }
+      d.onclick = () => jumpHL(h); L.append(d);
+    });
+  }
+  function jumpHL(h) {
+    const sp = hlEls(h.id)[0];
+    if (!sp) {
+      if (confirm('Không tìm thấy đoạn này trong sách (nội dung có thể đã thay đổi). Xoá khỏi danh sách?')) { removeHL(h.id); saveHL() }
+      return;
+    }
+    hideUI(); jumpEl(sp);
+    requestAnimationFrame(() => {
+      hlEls(h.id).forEach(s => s.classList.add('flash'));
+      setTimeout(() => hlEls(h.id).forEach(s => s.classList.remove('flash')), 1600);
+    });
+  }
+
+  /* -- Xuất / sao lưu / khôi phục -- */
+  function dl(name, text, type) {
+    const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([text], { type })); a.download = name;
+    document.body.append(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(a.href), 2000);
+  }
+  $('#nTxt').onclick = () => {
+    const out = [document.title, ''], last = { c: null };
+    [...HL].sort((a, b) => posKey(a) - posKey(b)).forEach(h => {
+      const ch = chOf(h.segs.length ? h.segs[0].b : 0);
+      if (ch !== last.c) { out.push('', '## ' + ch); last.c = ch }
+      out.push('- ' + h.text + (h.note ? '\n    → ' + h.note.replace(/\n/g, '\n      ') : ''));
+    });
+    dl(document.title + ' - ghi chú.txt', '\ufeff' + out.join('\n') + '\n', 'text/plain;charset=utf-8');
+  };
+  $('#nJson').onclick = () => dl(document.title + ' - sao lưu ghi chú.json', JSON.stringify({ v: 1, title: document.title, hl: HL.map(strip) }, null, 1), 'application/json');
+  $('#nImp').onclick = () => $('#nFile').click();
+  $('#nFile').onchange = async e => {
+    const f = e.target.files[0]; e.target.value = ''; if (!f) return;
+    try {
+      const data = JSON.parse(await f.text()), arr = Array.isArray(data) ? data : data.hl, have = new Set(HL.map(h => h.id)); let n = 0;
+      if (!Array.isArray(arr)) throw 0;
+      clearMarks();
+      arr.forEach(h => {
+        if (!h || have.has(h.id) || !Array.isArray(h.segs) || !h.segs.length || !/^#[0-9a-f]{6}$/i.test(h.c)) return;
+        if (!h.segs.every(g => Number.isInteger(g.b) && Number.isInteger(g.s) && Number.isInteger(g.e) && typeof g.x === 'string' && g.x)) return;
+        const x = { id: String(h.id || uid()), segs: h.segs.map(g => ({ b: g.b, s: g.s, e: g.e, x: g.x })), text: String(h.text || ''), c: h.c, note: String(h.note || ''), t: +h.t || Date.now() };
+        HL.push(x); drawHL(x); n++;
+      });
+      saveHL(); $('#nInfo').textContent = 'Đã khôi phục ' + n + ' đoạn';
+    } catch (err) { $('#nInfo').textContent = 'File sao lưu không hợp lệ' }
+  };
 
   syncUI();
   document.documentElement.dataset.theme = S.theme;
