@@ -2,21 +2,18 @@
   const $ = s => document.querySelector(s), $$ = s => [...document.querySelectorAll(s)];
 
   /* ====== CẤU HÌNH ====== */
-  // Phần tử nào được coi là tiêu đề chương:
   const CHAPTER_SELECTOR = 'h1,h2,h3,.chapter';
-  // Nếu nội dung không có thẻ tiêu đề, nhận diện chương theo văn bản:
   const CHAPTER_RE = /^(chương|phần|quyển|hồi|chapter|part|book)\s+\S+/i;
-
-  // Bảng màu bút ghi nhớ (người đọc còn có thể chọn thêm màu tuỳ ý):
   const PALETTE = ['#ffe08a', '#a8e6a1', '#9fd3ff', '#ffb3c1', '#d9b8ff'];
 
   /* ====== TRẠNG THÁI ====== */
   let docKey = 'reader:' + document.title;
-  let S = { fs: 20, lh: 1.7, font: 'serif', theme: 'sepia', spread: 'auto', mode: 'page', nodia: true, hlc: PALETTE[0], hlCustom: '' };
+  // Đã bỏ 'mode' và 'spread': luôn ở chế độ cuộn
+  let S = { fs: 20, lh: 1.7, font: 'serif', theme: 'sepia', nodia: true, hlc: PALETTE[0], hlCustom: '' };
   try { Object.assign(S, JSON.parse(localStorage.getItem('reader:settings') || '{}')) } catch (e) { }
   const saveS = () => { try { localStorage.setItem('reader:settings', JSON.stringify(S)) } catch (e) { } };
   const area = $('#area'), vp = $('#vp'), book = $('#book');
-  let cols = 1, gap = 40, colW = 0, step = 0, pages = 1, page = 0, chapters = [], ready = false, lastMode = 'page', st, hits = [];
+  let chapters = [], scrollMax = 1, ready = false, st, hits = [];
 
   /* ====== CHUẨN HOÁ NỘI DUNG ====== */
   const ALIGN = { center: 'al-center', right: 'al-right', left: 'al-left', justify: 'al-justify' };
@@ -29,8 +26,6 @@
       if (n.style) { DROP.forEach(p => n.style.removeProperty(p)); if (!n.getAttribute('style')) n.removeAttribute('style') }
     });
   }
-  // Một <p> chứa nhiều đoạn ngăn bằng <br><br> sẽ được tách thành nhiều <p>
-  // (giữ nguyên thẻ in nghiêng/đậm đang mở ở chỗ tách)
   function splitParas(p) {
     const html = p.innerHTML;
     if (!/<br\s*\/?>\s*<br/i.test(html)) return [p];
@@ -78,137 +73,127 @@
     ch.forEach(e => e.classList.add('chapter'));
   }
 
-  /* ====== DỰNG TRANG ====== */
-  const scrollMode = () => lastMode === 'scroll';
-  const pageOf = el => Math.floor(Math.round(el.offsetLeft / (colW + gap)) / cols);
-  function anchor() {
-    const k = book.children;
-    if (scrollMode()) { const t = vp.scrollTop; for (let i = 0; i < k.length; i++)if (k[i].offsetTop + k[i].offsetHeight > t + 2) return i; return 0 }
-    const lim = page * cols;
-    for (let i = 0; i < k.length; i++)if (Math.round(k[i].offsetLeft / (colW + gap)) >= lim) return i;
-    return 0;
-  }
-  const savePos = () => { try { localStorage.setItem(docKey + ':pos', anchor()) } catch (e) { } };
+  /* ====== VỊ TRÍ ĐỌC ====== */
+  // Dùng scrollTop (pixel) — key mới để không đụng dữ liệu "index chương" của bản cũ
+  const savePos = () => { try { localStorage.setItem(docKey + ':scroll', vp.scrollTop) } catch (e) { } };
+  const loadPos = () => { try { return +localStorage.getItem(docKey + ':scroll') || 0 } catch (e) { return 0 } };
   function markCur(c) { $$('#toc button').forEach(b => b.classList.toggle('cur', !!c && +b.dataset.i === chapters.indexOf(c))) }
-  function layout(startIdx) {
-    const a = startIdx != null ? startIdx : (ready && book.children.length ? anchor() : 0);
-    const W = area.clientWidth, H = area.clientHeight, sc = S.mode === 'scroll', root = document.documentElement;
-    const px = W > 700 ? 56 : 22; let PW;
-    if (sc) {
-      cols = 1; gap = 0; PW = Math.min(W - 2 * px, 760);
-      Object.assign(vp.style, { top: '0', height: (H - 34) + 'px', overflowY: 'auto', touchAction: 'pan-y' });
-      Object.assign(book.style, { height: 'auto', columnCount: '', columnGap: '', padding: '28px 0 48px', transform: 'none', transition: 'none' });
-    } else {
-      cols = S.spread === '2' || (S.spread === 'auto' && W > H && W >= 900) ? 2 : 1;
-      gap = cols === 2 ? Math.round(Math.min(72, W * .05)) : 40;
-      const top = Math.max(24, Math.round(H * .03)), bot = 48;
-      colW = Math.floor((W - 2 * px - (cols - 1) * gap) / cols); PW = cols * colW + (cols - 1) * gap;
-      Object.assign(vp.style, { top: top + 'px', height: (H - top - bot) + 'px', overflowY: 'hidden', touchAction: 'none' });
-      Object.assign(book.style, { height: '100%', columnCount: cols, columnGap: gap + 'px', padding: '0' });
-    }
-    // Chế độ cuộn: khung #vp rộng full màn hình để thanh cuộn nằm sát mép ngoài cùng
-    vp.style.left = sc ? '0' : Math.round((W - PW) / 2) + 'px';
-    vp.style.width = (sc ? W : PW) + 'px';
-    book.style.width = PW + 'px';
-    book.style.marginLeft = sc ? Math.round((W - PW) / 2) + 'px' : '0';
+
+  /* ====== DỰNG TRANG (chỉ cuộn) ====== */
+  function layout(startTop) {
+    if (startTop == null) startTop = vp.scrollTop || 0;
+    const W = area.clientWidth, H = area.clientHeight, root = document.documentElement;
+    const px = W > 700 ? 56 : 22;
+    const PW = Math.min(W - 2 * px, 760);
+
+    // #vp luôn cuộn dọc, full chiều ngang để scrollbar sát mép
+    Object.assign(vp.style, {
+      top: '0',
+      left: '0',
+      width: W + 'px',
+      height: (H - 34) + 'px',
+      overflowY: 'auto',
+      overflowX: 'hidden',
+      touchAction: 'pan-y'
+    });
+    // #book chỉ còn là khối nội dung, KHÔNG transform/transition/will-change
+    Object.assign(book.style, {
+      width: PW + 'px',
+      marginLeft: Math.round((W - PW) / 2) + 'px',
+      height: 'auto',
+      padding: '28px 0 48px',
+      transform: 'none',
+      transition: 'none',
+      willChange: 'auto'
+    });
     $('#foot').style.padding = '0 ' + Math.round((W - PW) / 2) + 'px';
-    root.style.setProperty('--fs', S.fs + 'px'); root.style.setProperty('--lh', S.lh);
+    root.style.setProperty('--fs', S.fs + 'px');
+    root.style.setProperty('--lh', S.lh);
     book.classList.toggle('sans', S.font === 'sans');
-    root.dataset.theme = S.theme; root.dataset.mode = S.mode;
-    area.style.touchAction = sc ? 'pan-y' : 'none'; // cho phép vuốt dọc để cuộn trên iPad/iPhone
-    lastMode = S.mode; ready = true;
-    const el = book.children[a];
-    if (sc) {
-      chapters.forEach(c => c.top = c.el.offsetTop);
-      vp.scrollTop = el ? Math.max(0, el.offsetTop - 8) : 0;
-      updateScroll();
-    } else {
-      step = cols * (colW + gap);
-      pages = Math.ceil(Math.max(1, Math.round((book.scrollWidth + gap) / (colW + gap))) / cols);
-      chapters.forEach(c => c.page = pageOf(c.el));
-      go(el ? pageOf(el) : 0, false);
-    }
+    root.dataset.theme = S.theme;
+    ready = true;
+
+    // Cache các phép đo — chỉ đọc DOM 1 lần
+    scrollMax = Math.max(1, vp.scrollHeight - vp.clientHeight);
+    chapters.forEach(c => c.top = c.el.offsetTop);
+
+    // Khôi phục vị trí (browser tự clamp nếu vượt max)
+    if (startTop) vp.scrollTop = startTop;
+    updateScroll();
     renderToc();
   }
-  function go(p, anim = true) {
-    page = Math.max(0, Math.min(pages - 1, p));
-    book.style.transition = anim ? '' : 'none';
-    book.style.transform = 'translateX(' + (-page * step) + 'px)';
-    const c = [...chapters].reverse().find(c => c.page <= page);
-    $('#fchap').textContent = c ? c.title : '';
-    $('#fpage').textContent = (page + 1) + ' / ' + pages;
-    $('#bar').style.width = (pages > 1 ? (page + 1) / pages * 100 : 100) + '%';
-    markCur(c); savePos();
-  }
+
   function updateScroll() {
-    const max = Math.max(1, vp.scrollHeight - vp.clientHeight), t = vp.scrollTop;
+    const t = vp.scrollTop;
+    const pct = scrollMax > 1 ? Math.min(100, Math.round(t / scrollMax * 100)) : 0;
     const c = [...chapters].reverse().find(c => c.top <= t + 40);
     $('#fchap').textContent = c ? c.title : '';
-    $('#fpage').textContent = Math.round(t / max * 100) + '%';
-    $('#bar').style.width = (t / max * 100) + '%';
-    markCur(c); clearTimeout(st); st = setTimeout(savePos, 300);
+    $('#fpage').textContent = pct + '%';
+    $('#bar').style.width = pct + '%';
+    markCur(c);
+    clearTimeout(st); st = setTimeout(savePos, 300);
   }
+
   vp.addEventListener('scroll', () => {
-    if (scrollMode()) requestAnimationFrame(updateScroll);
-    else if (vp.scrollLeft || vp.scrollTop) { vp.scrollLeft = 0; vp.scrollTop = 0 }
-  });
+    updateScroll();
+    // Popup mới (đang bôi) đóng khi cuộn; popup đang sửa ghi chú thì đi theo đoạn
+    if (pend) closePop();
+    else if (!pop.hidden && editId) repop();
+  }, { passive: true });
+
+  const next = () => { closePop(); vp.scrollBy({ top: vp.clientHeight * .9, behavior: 'smooth' }) };
+  const prev = () => { closePop(); vp.scrollBy({ top: -vp.clientHeight * .9, behavior: 'smooth' }) };
   function jumpEl(el) {
-    if (scrollMode()) { vp.scrollTo({ top: Math.max(0, el.offsetTop - 16) }); updateScroll() }
-    else go(pageOf(el));
+    vp.scrollTo({ top: Math.max(0, el.offsetTop - 16), behavior: 'smooth' });
   }
-  const next = () => { closePop(); scrollMode() ? vp.scrollBy({ top: vp.clientHeight * .9, behavior: 'smooth' }) : go(page + 1) };
-  const prev = () => { closePop(); scrollMode() ? vp.scrollBy({ top: -vp.clientHeight * .9, behavior: 'smooth' }) : go(page - 1) };
 
   /* ====== NẠP NỘI DUNG ====== */
-  function load(html, key) { loadNodes(normalize(html), key) }
   function loadNodes(nodes, key) {
     if (key) docKey = key;
     markChapters(nodes);
-    book.replaceChildren(...nodes); $('#qRes').textContent = ''; $('#qInfo').textContent = '';
+    book.replaceChildren(...nodes);
+    $('#qRes').textContent = ''; $('#qInfo').textContent = '';
     if (!nodes.length) book.innerHTML = '<p class="empty">Chưa có nội dung. Khai báo CHAPTER_FILES trong index.html.</p>';
     chapters = [...book.querySelectorAll('.chapter')].map(el => ({
       el, idx: [...book.children].indexOf(el), title: (() => {
         const t = el.cloneNode(true); t.querySelectorAll('br').forEach(b => b.replaceWith(' | '));
         return t.textContent.replace(/(\s*\|\s*)+/g, ' – ').replace(/\s+/g, ' ').replace(/^ – | – $/g, '').trim()
-      })(), page: 0
+      })(), top: 0
     }));
     loadHL();
-    let pos = 0; try { pos = +localStorage.getItem(docKey + ':pos') || 0 } catch (e) { }
-    layout(Math.min(pos, Math.max(0, book.children.length - 1)));
+    layout(loadPos());
   }
   function renderToc() {
     const t = $('#toc');
     t.innerHTML = chapters.length ? '' : '<p style="margin:4px">Không tìm thấy chương nào.</p>';
     chapters.forEach((c, i) => {
-      const b = document.createElement('button'); b.dataset.i = i;
-      b.innerHTML = '<small>' + (scrollMode() ? '' : c.page + 1) + '</small>';
-      b.prepend(document.createTextNode(c.title));
+      const b = document.createElement('button');
+      b.dataset.i = i;
+      b.textContent = c.title;
       b.onclick = () => { jumpEl(c.el); hideUI() };
       t.append(b);
     });
   }
 
   /* ====== ĐIỀU KHIỂN ====== */
-  let sx = 0, sy = 0;
-  let popDown = false;
+  let sx = 0, sy = 0, popDown = false;
   area.addEventListener('pointerdown', e => { sx = e.clientX; sy = e.clientY; popDown = !$('#hlPop').hidden });
   area.addEventListener('pointerup', e => {
     const dx = e.clientX - sx, dy = e.clientY - sy;
-    if (curSel()) return; // đang bôi chọn chữ → không lật trang
-    if (!scrollMode() && Math.abs(dx) > 40 && Math.abs(dx) > Math.abs(dy) * 1.3) { dx < 0 ? next() : prev(); hideUI(); return }
-    if (Math.abs(dx) > 10 || Math.abs(dy) > 10) return;
+    if (curSel()) return;                        // đang bôi chọn chữ
+    if (Math.abs(dx) > 10 || Math.abs(dy) > 10) return; // là thao tác kéo/cuộn
     if (popDown) { closePop(); return }
     if (uiOpen()) { hideUI(); return }
     const hl = e.target.closest && e.target.closest('.hl');
     if (hl) { openEdit(hl.dataset.id, hl.getBoundingClientRect()); return }
-    const w = area.clientWidth;
-    e.clientX < w * .3 ? prev() : e.clientX > w * .7 ? next() : bars(true);
+    bars(true);
   });
   addEventListener('keydown', e => {
     if (e.target.matches && e.target.matches('input,textarea')) { if (e.key === 'Escape') hideUI(); return }
     if (['ArrowRight', 'PageDown', ' '].includes(e.key)) { e.preventDefault(); next() }
     else if (['ArrowLeft', 'PageUp'].includes(e.key)) { e.preventDefault(); prev() }
-    else if (e.key === 'Home') scrollMode() ? vp.scrollTo({ top: 0 }) : go(0); else if (e.key === 'End') scrollMode() ? vp.scrollTo({ top: 1e9 }) : go(pages - 1);
+    else if (e.key === 'Home') vp.scrollTo({ top: 0 });
+    else if (e.key === 'End') vp.scrollTo({ top: 1e9 });
     else if (e.key === 'Escape') hideUI();
   });
   const bars = on => $$('#top,#side').forEach(b => b.classList.toggle('show', on));
@@ -231,14 +216,22 @@
       const d = +b.dataset.d;
       S[k] = k === 'fs' ? Math.max(12, Math.min(40, S.fs + d)) : Math.max(1.2, Math.min(2.4, Math.round((S.lh + d) * 10) / 10));
     } else S[k] = b.dataset.v;
-    saveS(); syncUI(); layout();
+    saveS(); syncUI();
+    layout(); // giữ nguyên vị trí đang đọc
   });
   function syncUI() {
-    $('#qDia').classList.toggle('on', !!S.nodia); $('#vFs').textContent = S.fs; $('#vLh').textContent = S.lh.toFixed(1);
+    $('#qDia').classList.toggle('on', !!S.nodia);
+    $('#vFs').textContent = S.fs;
+    $('#vLh').textContent = S.lh.toFixed(1);
     $$('#pSet [data-v]').forEach(b => b.classList.toggle('on', S[b.dataset.k] === b.dataset.v));
   }
   let rt;
-  ['resize', 'orientationchange', 'fullscreenchange', 'webkitfullscreenchange'].forEach(ev => addEventListener(ev, () => { clearTimeout(rt); rt = setTimeout(() => { layout(); repop() }, 150) }));
+  ['resize', 'orientationchange', 'fullscreenchange', 'webkitfullscreenchange'].forEach(ev =>
+    addEventListener(ev, () => {
+      clearTimeout(rt);
+      rt = setTimeout(() => { layout(); repop(); }, 150);
+    })
+  );
 
   /* ====== TÌM KIẾM ====== */
   const fold = s => { s = s.toLowerCase(); return S.nodia ? s.replace(/[^\u0000-\u007f]/g, c => c === 'đ' ? 'd' : c.normalize('NFD')[0]) : s };
@@ -284,10 +277,7 @@
   function showFind() { $$('.panel').forEach(x => x.classList.remove('open')); $('#pFind').classList.add('open') }
   $('#q').addEventListener('focus', () => { if (hits.length) showFind() });
 
-
-  /* ====== BÚT GHI NHỚ: BÔI ĐOẠN + GHI CHÚ ====== */
-  // Mỗi đoạn bôi: { id, segs:[{b,s,e,x}], text, c, note, t }
-  //   b = chỉ số khối (đoạn văn) trong sách, s/e = vị trí ký tự trong khối đó, x = chữ gốc (để kiểm tra khi nạp lại)
+  /* ====== BÚT GHI NHỚ ====== */
   let HL = [], pend = null, editId = null, nf = '', selT = 0, nt = 0;
   const pop = $('#hlPop'), hlNote = $('#hlNote');
   const hlKey = () => docKey + ':hl';
@@ -318,7 +308,7 @@
     h.segs.forEach(g => {
       const el = book.children[g.b]; if (!el) { h.lost = true; return }
       const t = el.textContent;
-      if (t.slice(g.s, g.e) !== g.x) { // sách đã đổi nhẹ → tìm lại chữ trong cùng khối
+      if (t.slice(g.s, g.e) !== g.x) {
         const i = t.indexOf(g.x); if (i < 0) { h.lost = true; return }
         g.s = i; g.e = i + g.x.length;
       }
@@ -336,8 +326,6 @@
     els.forEach(sp => sp.replaceWith(...sp.childNodes)); ps.forEach(p => p.normalize());
     HL = HL.filter(h => h.id !== id);
   }
-
-  /* -- Vùng đang bôi → danh sách đoạn (theo từng khối) -- */
   function curSel() {
     const sel = getSelection(); if (!sel || sel.isCollapsed || !sel.rangeCount) return null;
     const r = sel.getRangeAt(0); return book.contains(r.commonAncestorContainer) ? r : null;
@@ -362,13 +350,11 @@
     }
     return segs;
   }
-
-  /* -- Hộp công cụ nổi -- */
   function placePop(rect) {
     pop.hidden = false;
     const w = pop.offsetWidth, h = pop.offsetHeight, coarse = matchMedia('(pointer:coarse)').matches;
     const x = Math.min(Math.max(8, rect.left + rect.width / 2 - w / 2), innerWidth - w - 8);
-    let y = coarse ? rect.bottom + 14 : rect.top - h - 10; // cảm ứng: đặt dưới để khỏi đè menu của hệ thống
+    let y = coarse ? rect.bottom + 14 : rect.top - h - 10;
     if (y < 8) y = rect.bottom + 10;
     pop.style.left = x + 'px'; pop.style.top = Math.max(8, Math.min(y, innerHeight - h - 8)) + 'px';
   }
@@ -396,7 +382,7 @@
     pop.dataset.mode = 'edit'; placePop(rect);
   }
   function addHL(c) {
-    clearMarks(); // gỡ phần tô sáng của tìm kiếm trước khi bọc chữ
+    clearMarks();
     const h = { id: uid(), segs: pend.segs, text: pend.segs.map(g => g.x).join(' '), c, note: '', t: Date.now() };
     HL.push(h); drawHL(h); saveHL();
     const sel = getSelection(); sel && sel.removeAllRanges(); pend = null; return h;
@@ -407,13 +393,13 @@
     else if (pend) { addHL(c); closePop() }
   }
   function onSel() {
-    if (editId && !pop.hidden) return; // đang sửa ghi chú, bỏ qua thay đổi vùng chọn
+    if (editId && !pop.hidden) return;
     const r = curSel(); if (!r) { closePop(); return }
     const segs = segsOf(r); if (!segs.length) { closePop(); return }
     pend = { segs }; editId = null; pop.dataset.mode = 'new'; drawSw(S.hlc); placePop(r.getBoundingClientRect());
   }
   document.addEventListener('selectionchange', () => { clearTimeout(selT); selT = setTimeout(onSel, 250) });
-  pop.addEventListener('mousedown', e => { if (!e.target.closest('textarea,input')) e.preventDefault() }); // giữ nguyên vùng đang bôi
+  pop.addEventListener('mousedown', e => { if (!e.target.closest('textarea,input')) e.preventDefault() });
   $('#hlSw').addEventListener('click', e => { const b = e.target.closest('.sw[data-c]'); if (b) pickColor(b.dataset.c) });
   $('#hlSw').addEventListener('change', e => {
     if (e.target.type !== 'color') return;
@@ -435,7 +421,6 @@
   };
   $('#hlOk').onclick = closePop;
 
-  /* -- Danh sách ghi chú trên thanh công cụ -- */
   function renderNotes() {
     const L = $('#nList'), F = $('#nFilter'); L.textContent = ''; F.textContent = '';
     const all = [...HL].sort((a, b) => posKey(a) - posKey(b)), cs = [...new Set(all.map(h => h.c))];
@@ -469,7 +454,6 @@
     });
   }
 
-  /* -- Xuất / sao lưu / khôi phục -- */
   function dl(name, text, type) {
     const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([text], { type })); a.download = name;
     document.body.append(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(a.href), 2000);
@@ -501,6 +485,7 @@
     } catch (err) { $('#nInfo').textContent = 'File sao lưu không hợp lệ' }
   };
 
+  /* ====== KHỞI ĐỘNG ====== */
   syncUI();
   document.documentElement.dataset.theme = S.theme;
   const FILES = window.CHAPTER_FILES || [];
@@ -512,6 +497,17 @@
         if (!r.ok) throw new Error(f + ' (' + r.status + ')'); return r.text()
       })));
       loadNodes(texts.flatMap(t => normalize(t)));
+
+      // Khi font tải xong → chiều cao thay đổi → phải tính lại top chương & vị trí cuộn
+      if (document.fonts && document.fonts.ready) {
+        document.fonts.ready.then(() => {
+          const top = vp.scrollTop;
+          scrollMax = Math.max(1, vp.scrollHeight - vp.clientHeight);
+          chapters.forEach(c => c.top = c.el.offsetTop);
+          vp.scrollTop = top;
+          updateScroll();
+        });
+      }
     } catch (err) {
       book.innerHTML = '<p class="empty">Không tải được nội dung: ' + err.message +
         '<br>Hãy mở trang qua máy chủ web (ví dụ Live Server), không mở trực tiếp file://</p>';

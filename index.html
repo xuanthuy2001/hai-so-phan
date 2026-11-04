@@ -41,10 +41,6 @@
             <div class="grp"><button class="btn" data-k="lh" data-d="-0.1">−</button><span class="val"
                     id="vLh"></span><button class="btn" data-k="lh" data-d="0.1">+</button></div>
         </div>
-        <div class="row"><b>Chế độ đọc</b>
-            <div class="grp"><button class="btn" data-k="mode" data-v="page">Lật trang</button><button class="btn"
-                    data-k="mode" data-v="scroll">Cuộn</button></div>
-        </div>
         <div class="row"><b>Font</b>
             <div class="grp"><button class="btn" data-k="font" data-v="serif">Serif</button><button class="btn"
                     data-k="font" data-v="sans">Sans</button></div>
@@ -53,10 +49,6 @@
             <div class="grp"><button class="btn" data-k="theme" data-v="light">Sáng</button><button class="btn"
                     data-k="theme" data-v="sepia">Sepia</button><button class="btn" data-k="theme"
                     data-v="dark">Tối</button></div>
-        </div>
-        <div class="row"><b>Số trang</b>
-            <div class="grp"><button class="btn" data-k="spread" data-v="auto">Tự động</button><button class="btn"
-                    data-k="spread" data-v="1">1</button><button class="btn" data-k="spread" data-v="2">2</button></div>
         </div>
     </div>
     <div class="panel" id="pFind">
@@ -78,7 +70,6 @@
         <input type="file" id="nFile" accept=".json,application/json" hidden>
     </div>
 
-    <!-- Hộp công cụ bút ghi nhớ: hiện khi bôi chữ hoặc chạm vào đoạn đã bôi -->
     <div id="hlPop" data-mode="new" hidden>
         <div class="hl-q ed" id="hlQ"></div>
         <div class="hl-sw" id="hlSw"></div>
@@ -91,7 +82,6 @@
     </div>
 
     <script>
-        // Danh sách file chương, theo đúng thứ tự đọc:
         window.CHAPTER_FILES = ['chuong1.html', 'chuong2.html', 'chuong3.html', 'chuong4.html', 'chuong5.html', 'chuong6.html', 'chuong7.html'];
     </script>
     <script src="script.js"></script>

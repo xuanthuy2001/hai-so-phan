@@ -62,7 +62,8 @@ body {
 #area {
     position: fixed;
     inset: 0;
-    touch-action: none;
+    /* Luôn cho phép cuộn dọc; chặn pinch-zoom & pan ngang */
+    touch-action: pan-y;
     -webkit-user-select: none;
     user-select: none;
     -webkit-touch-callout: none
@@ -70,23 +71,23 @@ body {
 
 #vp {
     position: absolute;
-    overflow: hidden
+    overflow-y: auto;
+    overflow-x: hidden;
+    touch-action: pan-y;
+    /* Cuộn mượt trên iOS */
+    -webkit-overflow-scrolling: touch;
+    overscroll-behavior: contain;
+    scrollbar-width: thin;
+    scrollbar-color: var(--mut) transparent;
+    /* Tối ưu cho khối cuộn dài: browser có thể skip render phần ngoài viewport */
+    contain: layout style paint
 }
 
 #book {
     position: relative;
-    height: 100%;
-    column-fill: auto;
     font: var(--fs)/var(--lh) var(--ff);
     text-align: var(--ta);
-    transition: transform .26s ease;
-    will-change: transform
-}
-
-@media (prefers-reduced-motion:reduce) {
-    #book {
-        transition: none
-    }
+    /* KHÔNG còn transition / will-change: transform → tránh tạo layer khổng lồ gây lag trên iPad */
 }
 
 /* ---- Lớp CSS chuẩn hoá cho nội dung ---- */
@@ -98,7 +99,6 @@ body {
 #book blockquote {
     margin: 0 0 var(--pg);
     break-inside: avoid;
-    -webkit-column-break-inside: avoid;
     page-break-inside: avoid
 }
 
@@ -119,20 +119,11 @@ body {
 }
 
 #book .chapter {
-    break-before: column;
-    -webkit-column-break-before: always;
-    break-after: avoid;
-    -webkit-column-break-after: avoid;
     text-align: center;
     font-size: 1.45em;
     font-weight: 700;
     line-height: 1.3;
-    margin: 1.4em 0 1em
-}
-
-#book> :first-child.chapter {
-    break-before: auto;
-    -webkit-column-break-before: auto
+    margin: 2.2em 0 1em
 }
 
 #book blockquote {
@@ -192,15 +183,19 @@ body {
 #top {
     position: fixed;
     top: 0;
-    left: 0;
+    left: auto;
     right: 0;
     z-index: 5;
     display: flex;
     gap: 8px;
-    justify-content: center;
+    justify-content: flex-end;
     padding: calc(env(safe-area-inset-top) + 8px) 12px 8px;
     background: var(--ui);
     border-bottom: 1px solid var(--bd);
+    border-left: 1px solid var(--bd);
+    border-radius: 0 0 0 12px;
+    width: min(440px, 100%);
+    flex-wrap: nowrap;
     transform: translateY(-110%);
     transition: transform .2s;
     font-family: -apple-system, "Segoe UI", system-ui, sans-serif
@@ -305,34 +300,8 @@ body {
     cursor: pointer
 }
 
-#toc button small {
-    color: var(--mut);
-    float: right;
-    margin-left: 12px
-}
-
 #toc button.cur {
     font-weight: 700
-}
-
-#top {
-    flex-wrap: wrap
-}
-
-#vp {
-    -webkit-overflow-scrolling: touch;
-    overscroll-behavior: contain
-}
-
-#book mark {
-    background: var(--hl);
-    color: inherit;
-    border-radius: 2px;
-    padding: 0 1px
-}
-
-[data-mode=scroll] #book .chapter {
-    margin-top: 2.2em
 }
 
 #q {
@@ -378,19 +347,11 @@ body {
     font-weight: 600
 }
 
-#vp {
-    scrollbar-width: thin;
-    scrollbar-color: var(--mut) transparent
-}
-
-/* Bố cục mới: tìm kiếm góc trên phải, thanh công cụ dọc bên trái */
-#top {
-    left: auto;
-    width: min(440px, 100%);
-    flex-wrap: nowrap;
-    justify-content: flex-end;
-    border-left: 1px solid var(--bd);
-    border-radius: 0 0 0 12px
+#book mark {
+    background: var(--hl);
+    color: inherit;
+    border-radius: 2px;
+    padding: 0 1px
 }
 
 #side {
@@ -439,7 +400,7 @@ body {
     width: min(420px, calc(100vw - 24px))
 }
 
-/* ---- Bút ghi nhớ: đoạn bôi, hộp công cụ, danh sách ghi chú ---- */
+/* ---- Bút ghi nhớ ---- */
 #book {
     -webkit-user-select: text;
     user-select: text
